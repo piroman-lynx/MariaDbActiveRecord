@@ -1,111 +1,215 @@
 <?php
-/**
- * 
- * @author piroman
- *
- * @see https://kb.askmonty.org/en/dynamic-columns/
- */
-abstract class MariaActiveRecord {
-  
-	abstract protected $table_name;
-	abstract protected $columns; // array('fields_1','field_2','fields_3');
-	abstract protected $columns_types;  // array('char(255)','int','text');
 
-	protected $attrs;
-	public $isNewRecord;
-	
-	public function __contruct(){
-		//чекнуть $this->columns; на то что это массив вида array(0=>'fields_1',1=>'field_2',2=>'fields_3');
-		//чекнуть $this->columns_type; на то что это массив вида array(0=>'fields_1',1=>'field_2',2=>'fields_3');
-		
-		$this->attrs = array(); //'fields_1'=>array(),'fields_2'=>array(), 'fields_3'=>array()
-		$this->isNewRecord = true; 
-	}
-	
-	abstract public function model($model=__CLASS__){
-		return new MariaModel($this->tb...);
-	}
-	
-	private function insert(){
-		//use MariaModel
-	}
-	
-	private function update(){
-		//use MariaModel
-	}
-	
-	public final function save(){
-		if ($this->isNewRecord){
-			$this->insert();
-		}else{
-			$this->update();
-		}
-	}
-	
-	/**
-	 * 
-	 * @param unknown_type $column - из кого 
-	 * @param unknown_type $id - что
-	 */
-	public  final function delete_dynamic($column, $id){
-		
-	} 
-	
-	/**
-	 * 
-	 * @param unknown_type $column - куда
-	 * @param unknown_type $id - номер
-	 * @param unknown_type $value - значение
-	 * 
-	 */
-	public  final function add_dynamic($column, $id, $value){
-		
-	}
-	
-	/**
-	 * 
-	 * @param unknown_type $column
-	 * @see COLUMN_CREATE
-	 * 
-	 * COLUMN_CREATE(0,'0' as char(255))- тип который выше
-	 */
-	public  final function init_dynamic($column){
-		
-	}
-	
-	/**
-	 * 
-	 * @param unknown_type $name = "$column_$id"
-	 * @param unknown_type $value 
-	 */
-	public final function __set($name,$value){
-		
-	}
+class ActiveRecord extends CActiveRecord
+{
+    protected $dynamicValues = array();
+    protected $columns = array();
+    protected $columnsArray = array();
 
-	/**
-	 *
-	 * @param unknown_type $name = "$column_$id"
-	 * 
-	 */
-	public final function __get($name){
-		
-	}
-	
-	/**
-	 *
-	 * @param unknown_type $name = "$column_$id"
-	 *
-	 */
-	public final function __unset($name){
-		
-	}
-	
-	/**
-	 *
-	 * @param unknown_type $name = "$column_$id"
-	 *
-	 */
-	public final function __isset($name){
-		
-	}
+    /**
+     * @param string $name
+     * @return mixed
+     */
+    public function __get($name)
+    {
+        if ($this->hasDynamicValue($name))
+            $value = $this->getDynamicValue($name);
+        else
+            $value = parent::__get($name);
+
+        return $value;
+    }
+
+    /**
+     * @param string $name
+     * @param mixed $value
+     * @return mixed|void
+     */
+    public function __set($name, $value)
+    {
+        if (false === $this->setDynamicValue($name, $value))
+        {
+            parent::__set($name, $value);
+        }
+    }
+
+    /**
+     * @param string $name
+     * @return bool
+     */
+    public function __isset($name)
+    {
+        if ($this->hasDynamicValue($name))
+            return true;
+        else
+            return parent::__isset($name);
+    }
+
+    /**
+     * @param string $name
+     * @return mixed|void
+     */
+    public function __unset($name)
+    {
+        if ($this->hasDynamicValue($name))
+            $this->setDynamicValue($name, null);
+        else
+            parent::__unset($name);
+    }
+
+    /**
+     * @param string $attribute
+     * @return array|null
+     */
+    public function getDynamicValue($attribute = null)
+    {
+        if (null === $attribute)
+            return $this->dynamicValues;
+        elseif ($this->hasDynamicValue($attribute))
+            return isset($this->dynamicValues[$attribute]) ? $this->dynamicValues[$attribute] : $this->getDynamicValues($attribute);
+        else
+            return null;
+    }
+
+    /**
+     * @param string $attribute
+     * @param mixed $value
+     * @return bool
+     */
+    public function setDynamicValue($attribute, $value)
+    {
+        if ($this->hasDynamicValue($attribute))
+        {
+            $this->dynamicValues[$attribute] = $value;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param string $attribute
+     * @return bool
+     */
+    public function hasDynamicValue($attribute)
+    {
+        return array_key_exists($attribute, $this->dynamicValues) || array_key_exists($attribute, $this->dynamicValuesProperties());
+    }
+
+
+    protected function initDynamicValues()
+    {
+
+    }
+
+    protected function prepareDynamicValues()
+    {
+
+    }
+
+    /**
+     * select dynamic fields from db
+     */
+    protected function beforeFind()
+    {
+        //logic from MariaModel
+        parent::beforeFind();
+    }
+
+    protected function afterFind()
+    {
+        parent::afterFind();
+        $this->initDynamicValues();
+    }
+
+    /**
+     * put dynamic fields to db
+     */
+    protected function beforeSave()
+    {
+        $this->prepareDynamicValues();
+        return parent::beforeSave();
+    }
+
+    /**
+     * @return array
+     */
+    public function attributeNames()
+    {
+        return array_merge(parent::attributeNames(), array_keys($this->getDynamicValue()));
+    }
+
+    public function primaryKey()
+    {
+        return 'id';
+    }
+
+    /**
+     * @param bool $names
+     * @return array
+     */
+    public function getAttributes($names = true)
+    {
+        return parent::getAttributes() + $this->getDynamicValues($names);
+    }
+
+    /**
+     * @param bool|array|null $names
+     * @return array
+     */
+    public function getDynamicValues($names = true)
+    {
+        $dynamicValues = $this->getDynamicValue();
+        $attributes = array();
+        if (true === $names)
+        {
+            $attributes = $dynamicValues;
+        }
+        else if (is_array($names))
+        {
+            foreach ($names as $name)
+            {
+                if (isset($dynamicValues[$name]))
+                {
+                    $attributes[$name] = $dynamicValues[$name];
+                }
+            }
+        }
+        else
+        {
+            foreach ($dynamicValues as $name => $value)
+            {
+                if (null !== $value)
+                {
+                    $attributes[$name] = $value;
+                }
+            }
+        }
+        return $attributes;
+    }
+
+
+    /**
+     * Return list of dynamic fields
+     * array(
+     *   fieldName1 => fieldValue1,
+     *   fieldName2 => fieldValue2,
+     *   .....
+     * )
+     * @return array
+     */
+    protected function dynamicValuesProperties()
+    {
+        return array();
+    }
+
+    /**
+     * Return default dynamic field value
+     * @param string $name
+     * @return mixed
+     */
+    protected function getDefaultDynamicValue($name)
+    {
+        $e = $this->initDynamicValues();
+        return isset($e[$name]) ? $e[$name] : null;
+    }
 }

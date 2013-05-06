@@ -69,7 +69,16 @@ class ActiveRecord extends CActiveRecord
             throw new MariaException("Column is (bool)==false");
         elseif ($this->hasDynamicValue($attribute))
             list($column, $name) = explode('_', $attribute);
-            return isset($this->columnsValues[$column][$name]) ? $this->dynamicValues[$column][$name] : $this->getDynamicValues();
+            if (!isset($this->columnsValues[$column][$name])){
+                $val = $this->tryDynamicCache($column, $name);
+                if ($val === false){
+                    $this->getDynamicValues();
+                    return $this->columnsValues[$column][$name];
+                }
+                return $val;
+            }else{
+                return $this->columnsValues[$column][$name];
+            }
         else
             return null;
     }
@@ -209,8 +218,6 @@ class ActiveRecord extends CActiveRecord
 
     /**
      * @param bool|array|null $names
-     * @todo выпилить $names == false и параметр $names
-     * 
      * @return array
      */
     public function getDynamicValues()

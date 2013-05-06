@@ -62,15 +62,15 @@ class ActiveRecord extends CActiveRecord
 
     /**
      * @param string $attribute
-     * @todo выпилить attribute == null
      * @return array|null
      */
-    public function getDynamicValue($attribute = null)
+    public function getDynamicValue($attribute)
     {
-        if (null === $attribute)
-            return $this->dynamicValues;
+        if (!$attribute)
+            throw new MariaException("Column is (bool)==false");
         elseif ($this->hasDynamicValue($attribute))
-            return isset($this->dynamicValues[$attribute]) ? $this->dynamicValues[$attribute] : $this->getDynamicValues($attribute);
+            list($column, $name) = explode('_', $attribute);
+            return isset($this->columnsValues[$column][$name]) ? $this->dynamicValues[$column][$name] : $this->getDynamicValues();
         else
             return null;
     }
@@ -84,7 +84,8 @@ class ActiveRecord extends CActiveRecord
     {
         if ($this->hasDynamicValue($attribute))
         {
-            $this->dynamicValues[$attribute] = $value;
+            list($column, $name) = explode('_', $attribute);
+            $this->columnValues[$column][$name] = $value;
             return true;
         }
         return false;
@@ -193,35 +194,11 @@ class ActiveRecord extends CActiveRecord
      * 
      * @return array
      */
-    public function getDynamicValues($names = true)
+    public function getDynamicValues()
     {
-        $dynamicValues = $this->getDynamicValue();
-        $attributes = array();
-        if (true === $names)
-        {
-            $attributes = $dynamicValues;
-        }
-        else if (is_array($names))
-        {
-            foreach ($names as $name)
-            {
-                if (isset($dynamicValues[$name]))
-                {
-                    $attributes[$name] = $dynamicValues[$name];
-                }
-            }
-        }
-        else
-        {
-            foreach ($dynamicValues as $name => $value)
-            {
-                if (null !== $value)
-                {
-                    $attributes[$name] = $value;
-                }
-            }
-        }
-        return $attributes;
+        $this->loadDynamic = true;
+        $this->initDynamicValues();
+        return $this->columnsValues;
     }
 
 

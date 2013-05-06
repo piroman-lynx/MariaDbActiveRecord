@@ -5,6 +5,9 @@ class ActiveRecord extends CActiveRecord
     protected $dynamicValues = array();
     protected $columns = array();
     protected $columnsArray = array();
+    protected $dynamicTable = null;
+    protected $loadDynamic = true;
+    
 
     /**
      * @param string $name
@@ -59,6 +62,7 @@ class ActiveRecord extends CActiveRecord
 
     /**
      * @param string $attribute
+     * @todo выпилить attribute == null
      * @return array|null
      */
     public function getDynamicValue($attribute = null)
@@ -95,10 +99,40 @@ class ActiveRecord extends CActiveRecord
         return array_key_exists($attribute, $this->dynamicValues) || array_key_exists($attribute, $this->dynamicValuesProperties());
     }
 
+    protected function getNamingModel()
+    {
+        return DynamicList::model();
+    }
 
     protected function initDynamicValues()
     {
-
+        if ($this->loadDynamic){
+            foreach ($columns as $column){
+                //@todo cache here
+                $dynamicIdsSql = "SELECT COLUMN_LIST($column) FROM " . $this->dynamicTable . " WHERE " . $this->primaryKey() . " = " . $this->primaryKey() . ";";
+                
+                $dynamicIdsList = explode(",", Yii::app()->db->createCommand($dynamicIdsSql)->queryScalar());
+                $sql = "SELECT ";
+                $sql_columns = array();
+                foreach ($dynamicIdsList as $id){
+                    $id = (int)$id;
+                    $model = $this->getNamingModel()->getByPk($id);
+                    if (!($model instanceof MariaMetadataModel)){
+                        throw new MariaException("Bad metadata model");
+                    }
+                    $type = $model->type;
+                    $name = $model->name;
+                    $sql_columns []= " COLUMN_GET($column, {$id} as {$type}) as $name ";
+                }
+                $sql .= implode(", ", $sql_columns);
+                $sql .= " FROM " . $this->dynamicTable . " WHERE " . $this->primaryKey() . " = " . $this->primaryKey() . ";";
+                $result = Yii::app()->db->createCommand($sql)->queryRow($sql);
+                $this->columnsValues[$column] = array();
+                foreach ($result as $name=>$val){
+                    $this->columnsValues[$column][$name]=$val;
+                }
+            }
+        }
     }
 
     protected function prepareDynamicValues()
@@ -154,6 +188,8 @@ class ActiveRecord extends CActiveRecord
 
     /**
      * @param bool|array|null $names
+     * @todo выпилить $names == false и параметр $names
+     * 
      * @return array
      */
     public function getDynamicValues($names = true)

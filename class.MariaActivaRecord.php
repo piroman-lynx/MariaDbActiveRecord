@@ -2,7 +2,6 @@
 
 class ActiveRecord extends CActiveRecord
 {
-    protected $dynamicValues = array();
     protected $columns = array();
     protected $columnsArray = array();
     protected $dynamicTable = null;
@@ -97,9 +96,13 @@ class ActiveRecord extends CActiveRecord
      */
     public function hasDynamicValue($attribute)
     {
-        return array_key_exists($attribute, $this->dynamicValues) || array_key_exists($attribute, $this->dynamicValuesProperties());
+        list($column, $name) = explode('_', $attribute);
+        return isset($this->columnsValues[$column][$name]);
     }
 
+    /**
+     *  @todo вынести в проперти
+     */
     protected function getNamingModel()
     {
         return DynamicList::model();
@@ -137,11 +140,6 @@ class ActiveRecord extends CActiveRecord
         }
     }
 
-    protected function prepareDynamicValues()
-    {
-
-    }
-
     /**
      * select dynamic fields from db
      */
@@ -157,13 +155,29 @@ class ActiveRecord extends CActiveRecord
         $this->initDynamicValues();
     }
 
+    protected function saveDynamicChanged()
+    {
+        
+    }
+        
+    protected function expireDynamicChanged()
+    {
+        
+    }
+
     /**
      * put dynamic fields to db
      */
     protected function beforeSave()
     {
-        $this->prepareDynamicValues();
         return parent::beforeSave();
+    }
+    
+    protected function afterSave()
+    {
+        $this->saveDynamicChanged();
+        $this->expireDynamicChanged();
+        return parent::afterSave();
     }
 
     /**
@@ -185,7 +199,12 @@ class ActiveRecord extends CActiveRecord
      */
     public function getAttributes($names = true)
     {
-        return parent::getAttributes() + $this->getDynamicValues($names);
+        return parent::getAttributes() + $this->getDynamicValuesNames());
+    }
+
+    protected function getDynamicValuesNames()
+    {
+        
     }
 
     /**
@@ -201,29 +220,4 @@ class ActiveRecord extends CActiveRecord
         return $this->columnsValues;
     }
 
-
-    /**
-     * Return list of dynamic fields
-     * array(
-     *   fieldName1 => fieldValue1,
-     *   fieldName2 => fieldValue2,
-     *   .....
-     * )
-     * @return array
-     */
-    protected function dynamicValuesProperties()
-    {
-        return array();
-    }
-
-    /**
-     * Return default dynamic field value
-     * @param string $name
-     * @return mixed
-     */
-    protected function getDefaultDynamicValue($name)
-    {
-        $e = $this->initDynamicValues();
-        return isset($e[$name]) ? $e[$name] : null;
-    }
 }

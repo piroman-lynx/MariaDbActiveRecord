@@ -107,12 +107,12 @@ class ActiveRecord extends CActiveRecord
     protected function initDynamicValues()
     {
         if ($this->loadDynamic){
+            $sql = "SELECT ";
             foreach ($columns as $column){
                 //@todo cache here
                 $dynamicIdsSql = "SELECT COLUMN_LIST($column) FROM " . $this->dynamicTable . " WHERE " . $this->primaryKey() . " = " . $this->primaryKey() . ";";
                 
                 $dynamicIdsList = explode(",", Yii::app()->db->createCommand($dynamicIdsSql)->queryScalar());
-                $sql = "SELECT ";
                 $sql_columns = array();
                 foreach ($dynamicIdsList as $id){
                     $id = (int)$id;
@@ -122,15 +122,16 @@ class ActiveRecord extends CActiveRecord
                     }
                     $type = $model->type;
                     $name = $model->name;
-                    $sql_columns []= " COLUMN_GET($column, {$id} as {$type}) as $name ";
+                    $sql_columns []= " COLUMN_GET($column, {$id} as {$type}) as {$column}_{$name} ";
                 }
                 $sql .= implode(", ", $sql_columns);
-                $sql .= " FROM " . $this->dynamicTable . " WHERE " . $this->primaryKey() . " = " . $this->primaryKey() . ";";
-                $result = Yii::app()->db->createCommand($sql)->queryRow($sql);
-                $this->columnsValues[$column] = array();
-                foreach ($result as $name=>$val){
-                    $this->columnsValues[$column][$name]=$val;
-                }
+            }
+            $sql .= " FROM " . $this->dynamicTable . " WHERE " . $this->primaryKey() . " = " . $this->primaryKey() . ";";
+            $result = Yii::app()->db->createCommand($sql)->queryRow($sql);
+            $this->columnsValues[$column] = array();
+            foreach ($result as $name=>$val){
+                list($column, $name) = explode('_', $name);
+                $this->columnsValues[$column][$name]=$val;
             }
         }
     }

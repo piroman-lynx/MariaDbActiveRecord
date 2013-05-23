@@ -1,14 +1,38 @@
 <?php
-
+/**
+ * ActiveRecord implementation of ActiveRecord with MariaDb Dynamic Cloumns as metafields 
+ * 
+ * @package MariaDbActiveRecord
+ * @author Mikhail Konuykhov <devnull@note-space.com>
+ * @author Alexandr Polomodov <devnull@note-space.com>
+ * @version 1.0
+ **/
 class ActiveRecord extends CActiveRecord
 {
+    /**
+     * @var array $columns
+     **/
     protected $columns = array();
+    
+    /**
+     * @var array $columnsArray
+     **/
     protected $columnsArray = array();
+    
+    /**
+     * @var null|string $dynamicTable
+     **/
     protected $dynamicTable = null;
+    
+    /**
+     * @var bool $loadDynamic
+     **/
     protected $loadDynamic = true;
     
 
     /**
+     * Php-magick getter
+     * 
      * @param string $name
      * @return mixed
      */
@@ -23,9 +47,11 @@ class ActiveRecord extends CActiveRecord
     }
 
     /**
+     * Php-magick setter
+     * 
      * @param string $name
      * @param mixed $value
-     * @return mixed|void
+     * @return void
      */
     public function __set($name, $value)
     {
@@ -36,6 +62,8 @@ class ActiveRecord extends CActiveRecord
     }
 
     /**
+     * Php-magich method __isset
+     * 
      * @param string $name
      * @return bool
      */
